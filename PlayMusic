@@ -1,0 +1,115 @@
+drop database if exists PlayMusic;
+create database PlayMusic;
+use PlayMusic;
+ 
+ create table songs(
+ id int auto_increment primary key not null,
+ title varchar(100) not null,
+ genre varchar(20) not null,
+ style varchar(20),
+ arrangement varchar(255),
+ duration time not null,
+ price double not null
+ );
+ 
+  create table singers(
+  id int auto_increment primary key not null,
+  name varchar(200) not null,
+  info varchar(500)
+  );
+  
+  create table composers(
+  id int auto_increment primary key not null,
+  name varchar(200) not null,
+  info varchar(500)
+  );
+  
+  create table composer_song(
+ id int auto_increment primary key not null,
+ song_id int not null,
+ composer_id int not null,
+ constraint foreign key (composer_id) references composers(id),
+ constraint foreign key (song_id) references songs(id)
+ );
+ 
+ create table singer_song(
+ id int auto_increment primary key not null,
+ song_id int not null,
+ singer_id int not null,
+ constraint foreign key (singer_id) references singers(id),
+ constraint foreign key (song_id) references songs(id)
+ );
+ 
+ #select w/ constraint - Извежда всички полета от таблицата songs само за рок песните  
+  select *
+  from songs
+  where songs.genre='Rock'
+  ;
+  
+  #agregate function + group by - Извежда средната цена и заглавието на поп песните от таблицата songs, като ги групира по стил
+  select avg(songs.price) as AveragePrice, songs.title as Title, songs.genre as Genre, songs.style as Style
+  from songs 
+  where Genre='Pop'
+  group by Style
+ ;
+ 
+ #inner join - Извежда имената на изпълнителите, заглавията на техните песни и съответните им композитори
+ select singers.name, songs.title, composers.name
+ from singers join songs
+ on singers.id in (select singer_id
+ from singer_song
+ where singer_song.song_id=songs.id)
+join composers
+ on songs.id in (select song_id
+ from composer_song
+ where composer_song.composer_id=composers.id)
+ ;
+ 
+ #outer join - Извежда изпълнителите и техните песни
+ select singers.name, songs.title
+ from singers left outer join songs
+ on singers.id in (select singer_id
+ from singer_song
+ where singer_song.song_id=songs.id)
+ ;
+
+ #join + argegate function - Извежда броят и заглавията на песните, изпълнителите им и техните цени на тези, чиито цени са под 3$
+ select count(songs.id) as LowPriceSongs, songs.title as Title, singers.name as ArtistName, songs.price as Price
+ from songs join singers
+ on songs.id in(select song_id
+ from singer_song
+ where singer_song.singer_id=singers.id)
+ having Price<3
+ ;
+ 
+ #procedure w/ cursor 
+drop procedure if exists  Procedure1;
+delimiter &
+create procedure Procedure1()
+begin
+declare finished int;
+declare tempPrice double;
+declare tempTitle varchar(100);
+declare tempGenre varchar(20);
+declare songCursor cursor for
+select title, genre, price
+from songs
+where genre='RnB';
+declare continue handler for not found set finished = 1;
+set finished = 0;
+open songCursor;
+song_loop: while( finished = 0)
+do
+fetch songCursor into tempTitle, tempGenre, tempPrice;
+       if(finished = 1)
+       then
+       leave song_loop;
+       end if;	
+       select tempTitle, tempGenre, tempPrice;
+end while;
+close songCursor;
+set finished = 0;
+select 'Finished!';
+end;
+&
+delimiter ;
